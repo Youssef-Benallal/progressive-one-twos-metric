@@ -93,7 +93,7 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
             pitch_color="#17212d",
             line_color="white",
         )
-        fig, ax = pitch.draw(figsize=(8, 8))
+        fig, ax = pitch.draw(figsize=(8, 8))  # type: ignore
 
         # Plot each one–two in the match
         for i, row in match_team_df.iterrows():
@@ -124,7 +124,7 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
             )
 
             # Receiver carry: A end → B start
-            ax.plot(
+            ax.plot(  # type: ignore
                 [row[f"pass_end_{F.X}_A"], row[f"{F.X}_B"]],
                 [row[f"pass_end_{F.Y}_A"], row[f"{F.Y}_B"]],
                 linestyle="--",
@@ -134,7 +134,7 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
             )
 
             # Exchange progression: A start → B end
-            ax.plot(
+            ax.plot(  # type: ignore
                 [row[f"{F.X}_A"], row[f"pass_end_{F.X}_B"]],
                 [row[f"{F.Y}_A"], row[f"pass_end_{F.Y}_B"]],
                 linestyle="--",
@@ -145,7 +145,7 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
 
             # Minute label at A start
             minute = int(row[f"{F.TIME}_A"] // 60)
-            ax.text(
+            ax.text(  # type: ignore
                 row[f"{F.X}_A"],
                 row[f"{F.Y}_A"] + 1,
                 f"{minute}′",
@@ -156,17 +156,17 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
             )
 
         # Legend (deduplicate labels)
-        handles, labels = ax.get_legend_handles_labels()
+        handles, labels = ax.get_legend_handles_labels()  # type: ignore
         by_label = dict(zip(labels, handles))
         if by_label:
-            ax.legend(by_label.values(), by_label.keys(), loc="upper left", fontsize=10)
+            ax.legend(by_label.values(), by_label.keys(), loc="upper left", fontsize=10)  # type: ignore
 
         # Match title with scoreline
         home_team = match_team_df[F.HOME_TEAM_NAME].iloc[0]
         away_team = match_team_df[F.AWAY_TEAM_NAME].iloc[0]
         home_score = match_team_df[F.HOME_SCORE].iloc[0]
         away_score = match_team_df[F.AWAY_SCORE].iloc[0]
-        ax.set_title(
+        ax.set_title(  # type: ignore
             f"{team_name} One–Twos: {home_team} {home_score}–{away_score} {away_team}",
             fontsize=14,
         )
@@ -226,7 +226,8 @@ def plot_season_avg_one_twos(
     teams = match_counts[F.TEAM_NAME].unique()
     games = match_counts[F.GAME_ID].unique()
     all_index = pd.MultiIndex.from_product(
-        [games, teams], names=[F.GAME_ID, F.TEAM_NAME]
+        [games, teams],
+        names=[F.GAME_ID, F.TEAM_NAME],  # type: ignore
     )
     match_counts = (
         match_counts.set_index([F.GAME_ID, F.TEAM_NAME])
@@ -269,7 +270,7 @@ def plot_season_avg_one_twos(
                 try:
                     img = Image.open(logo_path).resize((28, 28))
                     ab = AnnotationBbox(
-                        OffsetImage(img),
+                        OffsetImage(img),  # type: ignore
                         (x_logo, y_coord),
                         frameon=False,
                         box_alignment=(1, 0.5),
@@ -341,7 +342,7 @@ def plot_one_twos_heatmap(df: pd.DataFrame, teams_per_row: int = 4) -> None:
         line_color="black",
         line_zorder=3,
         shade_middle=True,
-        shade_alpha=0.1,
+        shade_alpha=0.1,  # type: ignore
     )
 
     for idx, team in enumerate(teams):
@@ -529,8 +530,8 @@ def plot_one_twos_per_90(
     # Color intensity by common minutes
     mins = m["common_minutes"]
     norm = (mins - mins.min()) / (mins.max() - mins.min() + 1e-9)
-    blues = [plt.cm.Blues(0.5 + 0.5 * n) for n in norm][::-1]
-    greens = [plt.cm.Greens(0.5 + 0.5 * n) for n in norm][::-1]
+    blues = [plt.cm.Blues(0.5 + 0.5 * n) for n in norm][::-1]  # type: ignore
+    greens = [plt.cm.Greens(0.5 + 0.5 * n) for n in norm][::-1]  # type: ignore
 
     # Plot from top (best) at the bottom of the chart
     m = m.iloc[::-1].reset_index(drop=True)
@@ -545,7 +546,7 @@ def plot_one_twos_per_90(
     ax.spines["left"].set_visible(False)
 
     # Left-side labels: team logo + "player_1 (pos) - player_2 (pos)"
-    for i, (team, a, b, pos_a, pos_b) in enumerate(
+    for i, (team, a, b, pos_a, pos_b, _cmin) in enumerate(
         zip(
             m["team_name"],
             m["player_1"],
@@ -576,7 +577,7 @@ def plot_one_twos_per_90(
                 try:
                     img = Image.open(logo_path).resize((22, 22))
                     ab = AnnotationBbox(
-                        OffsetImage(img),
+                        OffsetImage(img),  # type: ignore
                         (-0.9, i),
                         frameon=False,
                         box_alignment=(1, 0.5),
@@ -600,7 +601,7 @@ def plot_one_twos_per_90(
     ax.set_xlim(left=-1.3)
     ax.set_xticks([tick for tick in ax.get_xticks() if tick >= 0])
 
-    plt.tight_layout(rect=[0, 0, 1, 0.88])
+    plt.tight_layout(rect=[0, 0, 1, 0.88])  # type: ignore
     plt.show()
 
 
@@ -759,7 +760,7 @@ def plot_onetwos_scatter_player(
             grp["opened_p90"],
             grp["closed_p90"],
             s=sizes.loc[grp.index],
-            c=palette.get(bucket, "#7f7f7f"),
+            c=palette.get(bucket, "#7f7f7f"),  # type: ignore
             alpha=0.85,
             edgecolors="none",
             label=bucket,
@@ -942,7 +943,7 @@ def plot_onetwos_chance_creation(
                 try:
                     img = Image.open(path)
                     ab = AnnotationBbox(
-                        OffsetImage(img, zoom=0.08),
+                        OffsetImage(img, zoom=0.08),  # type: ignore
                         (x_logo, i),
                         frameon=False,
                         box_alignment=(1, 0.5),

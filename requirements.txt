@@ -1,0 +1,7 @@
+joblib>=1.2,<2
+matplotlib>=3.6,<3.10
+mplsoccer>=1.2,<1.6
+numpy>=1.23,<2.1
+pandas>=1.5,<2.3
+Pillow>=9.5,<11
+tqdm>=4.65,<5
