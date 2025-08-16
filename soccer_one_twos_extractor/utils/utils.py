@@ -1,15 +1,18 @@
-import pandas as pd
-import numpy as np
 import glob
 import os
+from typing import Optional
+
+import numpy as np
+import pandas as pd
 from joblib import Parallel, delayed
 from tqdm import tqdm
+
 from soccer_one_twos_extractor.constants.constants import PITCH_LENGTH, PITCH_WIDTH
-from soccer_one_twos_extractor.constants.qualifiers_mapping import (
-    QUALIFIER_ID_TO_NAME,
-    COLUMN_RENAMES,
-)
 from soccer_one_twos_extractor.constants.fields import F
+from soccer_one_twos_extractor.constants.qualifiers_mapping import (
+    COLUMN_RENAMES,
+    QUALIFIER_ID_TO_NAME,
+)
 
 
 def list_xml_filenames(folder, pattern="*.xml"):
@@ -48,6 +51,102 @@ def fix_event_id(df: pd.DataFrame, sep: str = "-") -> pd.DataFrame:
         raise KeyError(f"Missing required columns for action_id: {miss}")
     d[F.ACTION_ID] = d[req].astype("string").fillna("NA").agg(sep.join, axis=1)
     return d
+
+
+def first_position(pos: Optional[str]) -> str:
+    """
+    Return the first (primary) position token from a comma-separated string.
+
+    Parameters
+    ----------
+    pos : str or None
+        A position label such as "CM,DM" or "LW". If None or not a string,
+        returns an empty string.
+
+    Returns
+    -------
+    str
+        The first position token, stripped of whitespace. Empty string if input
+        is None/non-string.
+
+    Examples
+    --------
+    >>> first_position("CM,DM")
+    'CM'
+    >>> first_position("  LW ")
+    'LW'
+    >>> first_position(None)
+    ''
+    """
+    if isinstance(pos, str):
+        return pos.split(",")[0].strip()
+    return ""
+
+
+def get_pair_positions(one_twos_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Build a unique, undirected list of one–two player pairs with their positions.
+
+    Given an event-level dataframe that contains both the initiating (A) and
+    returning (B) player names/positions and the team name, this function
+    returns a de-duplicated table of pairs, treating (A,B) and (B,A) as the
+    same pair for a given team.
+
+    Parameters
+    ----------
+    one_twos_df : pd.DataFrame
+        Must include the columns:
+        - "player_A_name", "player_B_name"
+        - "team_name"
+        - "player_A_position", "player_B_position"
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns:
+        - "player_A_name", "player_B_name", "team_name",
+          "player_A_position", "player_B_position"
+        Each row is a unique pair for that team (order-independent).
+
+    Examples
+    --------
+    >>> df = pd.DataFrame({
+    ...     "player_A_name": ["A", "B"],
+    ...     "player_B_name": ["B", "A"],
+    ...     "team_name": ["Team", "Team"],
+    ...     "player_A_position": ["CM,DM", "ST"],
+    ...     "player_B_position": ["ST", "CM,DM"],
+    ... })
+    >>> out = get_pair_positions(df)
+    >>> set(map(tuple, out[["player_A_name","player_B_name","team_name"]].values))
+    {('A', 'B', 'Team')}
+    """
+    pos1 = one_twos_df[
+        [
+            "player_A_name",
+            "player_B_name",
+            "team_name",
+            "player_A_position",
+            "player_B_position",
+        ]
+    ].drop_duplicates()
+
+    # Swap A/B to make the pair undirected, then unify column names
+    pos2 = one_twos_df[
+        [
+            "player_B_name",
+            "player_A_name",
+            "team_name",
+            "player_B_position",
+            "player_A_position",
+        ]
+    ].drop_duplicates()
+    pos2.columns = pos1.columns
+
+    # Concatenate and drop duplicates so (A,B) and (B,A) are treated the same
+    return pd.concat([pos1, pos2]).drop_duplicates(
+        subset=["player_A_name", "player_B_name", "team_name"]
+    )
 
 
 def extract_qualifier(q_list, qualifier_id):

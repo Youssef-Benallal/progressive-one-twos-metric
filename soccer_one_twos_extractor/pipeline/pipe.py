@@ -1,16 +1,15 @@
 import pandas as pd
-from soccer_one_twos_extractor.utils.utils import (
-    list_xml_filenames,
-    parallel_map,
-    normalize_coords,
-    fix_event_id,
-)
+
+from soccer_one_twos_extractor.data.events_data_loader import EventsDataLoader
+from soccer_one_twos_extractor.data.players_data_loader import PlayerDataLoader
 from soccer_one_twos_extractor.features.extract_features import FeaturesExtractor
 from soccer_one_twos_extractor.metrics.association_metrics import AssociationMetrics
-from soccer_one_twos_extractor.data.players_data_loader import PlayerDataLoader
-
-# from football_one_twos_extractor.data.playerspairs_data_loader import PlayerPairsDataLoader
-from soccer_one_twos_extractor.data.events_data_loader import EventsDataLoader
+from soccer_one_twos_extractor.utils.utils import (
+    fix_event_id,
+    list_xml_filenames,
+    normalize_coords,
+    parallel_map,
+)
 
 
 class MetricPipeline:
@@ -53,15 +52,15 @@ class MetricPipeline:
             desc="Parsing matches",
         )
         events_df = pd.concat(
-            [r["events"] for r in results],
+            [r["events"] for r in results],  # type: ignore
             ignore_index=True,  # type: ignore
         )
         players_df = pd.concat(
-            [r["players"] for r in results],
+            [r["players"] for r in results],  # type: ignore
             ignore_index=True,  # type: ignore
         )
         progressive_one_twos_df = pd.concat(
-            [r["progressive_one_twos"] for r in results],
+            [r["progressive_one_twos"] for r in results],  # type: ignore
             ignore_index=True,  # type: ignore
         )
 
