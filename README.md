@@ -1,2 +1,2 @@
 # progressive-one-twos-association-metric
-Quantifying player and team involvement in progressive one-two (give-and-go) actions, using Opta event data.
+Identifying progressive one twos and quantifying player and team involvement, using Opta F24 event data (La Liga 22/23 season)
