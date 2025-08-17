@@ -6,7 +6,7 @@ Identifying progressive one twos and quantifying player and team involvement, us
 ###
 * Rules:
 
-Check `soccer_one_twos_extractor/metrics/association_metrics.py` for more details
+Check `soccer_one_twos_extractor/metrics/association_metrics.py` `soccer_one_twos_extractor/features/extract_features.py` and  for more details
 
 1. Completed pass A→B followed
 immediately by a completed pass B→A (Same team & period).
@@ -18,7 +18,7 @@ immediately by a completed pass B→A (Same team & period).
 
 - (`Δt` ≤ `max_time_diff` seconds): `Δt` defined as the difference between one two's opening time and one two's closing time
 
-- Small Carry distance, One two's closer shouldn't move too far before returning the ball
+- Small Carry distance: One two's closer shouldn't move too far before returning the ball
 (`receiver_carry_distance` ≤ `max_player_b_ball_carry_distance`).
 
 # La liga 2022 2023 Opta F24 Data Analysis :
