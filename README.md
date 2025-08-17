@@ -24,6 +24,12 @@ immediately by a completed pass B→A (Same team & period).
 # La liga 2022 2023 Opta F24 Data Analysis :
 
 ## Team analysis
+
+### Prog. One twos preview
+- Barcelona Prog. One two's Vs Bilbao:
+![alt text](assets/docs/image-7.png)
+- Pedri's Goal against Villareal:
+![alt text](assets/docs/image-6.png)
 ### 1. Average Prog. One twos per Game Ranking
 ![alt text](assets/docs/image.png)
 
