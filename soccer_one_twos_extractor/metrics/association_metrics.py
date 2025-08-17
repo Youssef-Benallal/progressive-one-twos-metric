@@ -1,6 +1,7 @@
 # metrics/association_metrics.py
 
 import pandas as pd
+
 from soccer_one_twos_extractor.constants.fields import F
 
 
@@ -54,6 +55,9 @@ class AssociationMetrics:
             - `KEY_PASS_next_B`: whether the event right after B is a key pass
         """
         # Keep completed passes with a known receiver (same team, non-self).
+        if F.ASSIST not in df.columns:
+            df[F.ASSIST] = "0"
+
         d = df[
             (df[F.EVENT_NAME] == "Pass")
             & (df[F.OUTCOME] == "1")
@@ -74,6 +78,7 @@ class AssociationMetrics:
                 F.X: f"{F.X}_A",
                 F.Y: f"{F.Y}_A",
                 F.KEY_PASS: f"{F.KEY_PASS}_A",
+                F.ASSIST: f"{F.ASSIST}_A",
                 f"pass_end_{F.X}": f"pass_end_{F.X}_A",
                 f"pass_end_{F.Y}": f"pass_end_{F.Y}_A",
                 f"pass_receiver_{F.PLAYER_ID}": f"{F.PLAYER_ID}_B",
@@ -90,6 +95,7 @@ class AssociationMetrics:
             f"{F.TIME}_A",
             f"{F.ACTION_ID}_A",
             f"{F.KEY_PASS}_A",
+            f"{F.ASSIST}_A",
             f"pass_end_{F.X}_A",
             f"pass_end_{F.Y}_A",
         ]:
@@ -124,7 +130,6 @@ class AssociationMetrics:
         t["kp_next"] = t.groupby([F.GAME_ID, F.TEAM_ID, F.PERIOD_ID])[F.KEY_PASS].shift(
             -1
         )
-
         d[f"{F.KEY_PASS}_next_B"] = (
             d[f"{F.ACTION_ID}_B"].map(t.set_index(F.ACTION_ID)["kp_next"]).fillna("0")
         )

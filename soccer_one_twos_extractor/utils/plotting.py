@@ -15,58 +15,52 @@ from .utils import first_position, get_pair_positions
 
 def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
     """
-    Plot all progressive one–twos for a given team, match by match, on a 105×68 pitch.
+    Plot all progressive one–twos made by a given team, match by match, on a
+    105×68 pitch.
 
-    For each match involving `team_name`, this draws:
-      - First pass (A → B): solid **cyan** arrow from
-      (x_A, y_A) to (pass_end_x_A, pass_end_y_A)
-      - Return pass (B → A): solid **lime** arrow from
-      (x_B, y_B) to (pass_end_x_B, pass_end_y_B)
-      - Receiver carry: dashed **lime** line
-      from A's pass end to B's pass start
-      - Exchange progression: dashed **cyan** line
-      from A's start to B's pass end
-      - Minute label near A's start (derived from `time_seconds_A`)
+    For every match in `one_twos_df` where `team_name` appears (home or away),
+    the function:
+      • selects only the one–twos executed by `team_name` in that match,
+      • draws the opening pass A→B (solid cyan), the return pass B→A (solid lime),
+      • draws the receiver carry (A pass end → B pass start, dashed lime),
+      • draws the overall exchange progression (A start → B pass end, dashed cyan),
+      • annotates the minute (from `time_seconds_A`),
+      • titles the figure with the full match scoreline.
+    Matches with no rows for the team (after any upstream filtering)
+    are skipped gracefully.
 
     Parameters
     ----------
     one_twos_df : pd.DataFrame
-        DataFrame of detected one–twos (typically `progressive_one_twos_df_`).
-        Must include at least the following columns:
-            - Match/team context:
-              F.MATCH_NAME, F.TEAM_ID, "team_name",
-              F.HOME_TEAM_ID, F.HOME_TEAM_NAME, F.AWAY_TEAM_ID, F.AWAY_TEAM_NAME,
-              "home_score", "away_score"
-            - Opening pass (A → B):
-              f"{F.X}_A", f"{F.Y}_A", f"pass_end_{F.X}_A",
-              f"pass_end_{F.Y}_A", f"{F.TIME}_A"
-            - Return pass (B → A):
-              f"{F.X}_B", f"{F.Y}_B", f"pass_end_{F.X}_B", f"pass_end_{F.Y}_B"
+        Detected one–twos (typically your `progressive_one_twos_df_`), expected to
+        contain at least:
+          - Context: F.MATCH_NAME, F.TEAM_ID, F.HOME_TEAM_ID/NAME,
+          F.AWAY_TEAM_ID/NAME, F.HOME_SCORE, F.AWAY_SCORE, "team_name"
+          - Opening pass (A→B): f"{F.X}_A", f"{F.Y}_A", f"pass_end_{F.X}_A",
+            f"pass_end_{F.Y}_A", f"{F.TIME}_A"
+          - Return pass (B→A): f"{F.X}_B", f"{F.Y}_B", f"pass_end_{F.X}_B",
+            f"pass_end_{F.Y}_B"
+        Coordinates should already be normalized to a 105×68 pitch.
     team_name : str
-        Team to plot. All matches in `one_twos_df` where this team appears as
-        home or away are included.
+        Team to visualize (exact string match against home/away team names).
 
     Returns
     -------
     None
-        Displays one figure per match (uses Matplotlib).
+        Displays one matplotlib figure per match. Requires `mplsoccer.Pitch`.
 
     Notes
     -----
-    - Coordinates are assumed to be normalized to a 105×68 pitch and oriented
-      left-to-right for the attacking team (as in your pipeline’s `normalize_coords`).
-    - Requires `mplsoccer.Pitch`.
-
-    Examples
-    --------
-    >>> plot_team_one_twos(progressive_one_twos_df_, team_name="Manchester City")
+    - This function assumes your global constant names come from `F` (fields enum)
+      and that `Pitch` from `mplsoccer` is available in scope.
+    - If you pre-filter `one_twos_df` (e.g., only key-pass cases), some matches may
+      have zero one–twos for the team; those matches are skipped with a console note.
     """
-    # Filter to matches involving the requested team
+    # matches where the team appears
     team_df = one_twos_df[
         (one_twos_df[F.HOME_TEAM_NAME] == team_name)
         | (one_twos_df[F.AWAY_TEAM_NAME] == team_name)
     ].copy()
-
     if team_df.empty:
         print(f"No one–twos found for team: {team_name}")
         return
@@ -76,16 +70,23 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
     for match in matches:
         match_df = team_df[team_df[F.MATCH_NAME] == match]
 
-        # Resolve the numeric team_id for this match (home vs away)
-        if match_df[F.HOME_TEAM_NAME].iloc[0] == team_name:
-            team_id = match_df[F.HOME_TEAM_ID].iloc[0]
-        else:
-            team_id = match_df[F.AWAY_TEAM_ID].iloc[0]
+        # team_id for this match (home vs away)
+        team_is_home = match_df[F.HOME_TEAM_NAME].iat[0] == team_name
+        team_id = (
+            match_df[F.HOME_TEAM_ID].iat[0]
+            if team_is_home
+            else match_df[F.AWAY_TEAM_ID].iat[0]
+        )
 
-        # Keep only one–twos performed by this team in the match
+        # only this team’s one–twos in this match
         match_team_df = match_df[match_df[F.TEAM_ID] == team_id]
 
-        # Draw pitch
+        # --- guard: nothing to plot for this team in this match ---
+        if match_team_df.empty:
+            print(f"Skipping {match}: no {team_name} one–twos in current subset.")
+            continue
+
+        # draw pitch
         pitch = Pitch(
             pitch_type="custom",
             pitch_width=68,
@@ -95,9 +96,8 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
         )
         fig, ax = pitch.draw(figsize=(8, 8))  # type: ignore
 
-        # Plot each one–two in the match
+        # plot arrows...
         for i, row in match_team_df.iterrows():
-            # First pass (A → B)
             pitch.arrows(
                 row[f"{F.X}_A"],
                 row[f"{F.Y}_A"],
@@ -109,8 +109,6 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
                 ax=ax,
                 label="First pass" if i == match_team_df.index[0] else "",
             )
-
-            # Return pass (B → A)
             pitch.arrows(
                 row[f"{F.X}_B"],
                 row[f"{F.Y}_B"],
@@ -122,28 +120,22 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
                 ax=ax,
                 label="Return pass" if i == match_team_df.index[0] else "",
             )
-
-            # Receiver carry: A end → B start
             ax.plot(  # type: ignore
                 [row[f"pass_end_{F.X}_A"], row[f"{F.X}_B"]],
                 [row[f"pass_end_{F.Y}_A"], row[f"{F.Y}_B"]],
-                linestyle="--",
+                ls="--",
                 color="lime",
-                linewidth=1,
+                lw=1,
                 alpha=0.7,
             )
-
-            # Exchange progression: A start → B end
             ax.plot(  # type: ignore
                 [row[f"{F.X}_A"], row[f"pass_end_{F.X}_B"]],
                 [row[f"{F.Y}_A"], row[f"pass_end_{F.Y}_B"]],
-                linestyle="--",
+                ls="--",
                 color="cyan",
-                linewidth=1,
+                lw=1,
                 alpha=0.7,
             )
-
-            # Minute label at A start
             minute = int(row[f"{F.TIME}_A"] // 60)
             ax.text(  # type: ignore
                 row[f"{F.X}_A"],
@@ -155,22 +147,23 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
                 va="bottom",
             )
 
-        # Legend (deduplicate labels)
+        # legend (dedupe)
         handles, labels = ax.get_legend_handles_labels()  # type: ignore
         by_label = dict(zip(labels, handles))
         if by_label:
-            ax.legend(by_label.values(), by_label.keys(), loc="upper left", fontsize=10)  # type: ignore
+            ax.legend(  # type: ignore
+                by_label.values(), by_label.keys(), loc="upper left", fontsize=10
+            )  # type: ignore
 
-        # Match title with scoreline
-        home_team = match_team_df[F.HOME_TEAM_NAME].iloc[0]
-        away_team = match_team_df[F.AWAY_TEAM_NAME].iloc[0]
-        home_score = match_team_df[F.HOME_SCORE].iloc[0]
-        away_score = match_team_df[F.AWAY_SCORE].iloc[0]
+        # title from full match slice
+        home_team = match_df[F.HOME_TEAM_NAME].iat[0]
+        away_team = match_df[F.AWAY_TEAM_NAME].iat[0]
+        home_score = match_df[F.HOME_SCORE].iat[0]
+        away_score = match_df[F.AWAY_SCORE].iat[0]
         ax.set_title(  # type: ignore
             f"{team_name} One–Twos: {home_team} {home_score}–{away_score} {away_team}",
             fontsize=14,
         )
-
         plt.tight_layout()
         plt.show()
 
@@ -226,7 +219,7 @@ def plot_season_avg_one_twos(
     teams = match_counts[F.TEAM_NAME].unique()
     games = match_counts[F.GAME_ID].unique()
     all_index = pd.MultiIndex.from_product(
-        [games, teams],
+        [games, teams],  # type: ignore
         names=[F.GAME_ID, F.TEAM_NAME],  # type: ignore
     )
     match_counts = (
@@ -541,9 +534,39 @@ def plot_one_twos_per_90(
     ax.barh(y, m["A2B_p90"], color=blues, label="player_1 opens")
     ax.barh(y, m["B2A_p90"], color=greens, left=m["A2B_p90"], label="player_2 opens")
     ax.set_yticks([])
-    ax.set_xlabel("One–twos per 90 minutes")
-    ax.set_title("One–twos per 90")
-    ax.spines["left"].set_visible(False)
+    ax.set_xlabel("Progressive One–twos per 90 minutes")
+    # a bit more space between title and subtitle
+    ax.set_title(
+        f"Progressive One–twos Duos per 90 mins (Min. {min_minutes} common mins)",
+        pad=42,  # ↑ move title up from the axes
+    )
+
+    sub_y = 1.015  # ↓ lower than 1.03 → more gap to the title
+    ax.text(
+        0.49,
+        sub_y,
+        "Left Player Opens",
+        color="tab:blue",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=10,
+        weight="bold",
+    )
+    ax.text(
+        0.51,
+        sub_y,
+        "Right Player Opens",
+        color="tab:green",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=10,
+        weight="bold",
+    )
+
+    # keep headroom so nothing gets clipped
+    fig.tight_layout(rect=[0, 0, 1, 0.95])  # type: ignore
 
     # Left-side labels: team logo + "player_1 (pos) - player_2 (pos)"
     for i, (team, a, b, pos_a, pos_b, _cmin) in enumerate(
@@ -786,10 +809,13 @@ def plot_onetwos_scatter_player(
             ax.text(x + dx, y + dy, name, fontsize=9)
 
     ax.legend(title="Role", frameon=False, loc="upper left", ncol=1)
-    ax.set_xlabel("One–twos opened per 90")
-    ax.set_ylabel("One–twos closed per 90")
+    ax.set_xlabel("One–twos Opened per 90 min")
+    ax.set_ylabel("One–twos Closed per 90 min")
     ax.grid(True, ls="--", lw=0.5, alpha=0.5)
-    ax.set_title(f"One–twos: opened vs closed (min {min_minutes} minutes)")
+    ax.set_title(
+        "Progressive One–twos: Opened (Initial pass) vs Closed (Return pass)"
+        f"(Minimum {min_minutes} mins played)"
+    )
     plt.tight_layout()
     plt.show()
 

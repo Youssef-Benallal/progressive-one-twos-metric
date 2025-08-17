@@ -33,3 +33,4 @@ class F:
     TIME = "time_seconds"
     ACTION_ID = "action_id"
     KEY_PASS = "keypass"
+    ASSIST = "assist"
