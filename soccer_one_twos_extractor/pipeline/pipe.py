@@ -101,6 +101,7 @@ class MetricPipeline:
             .pipe(self.features_extractor.pass_features)
             .pipe(normalize_coords)
             .pipe(self.features_extractor.progression_features)
+            .pipe(self.features_extractor.next_chance_creation_features)
         )
         match_players = self.match_players_loader.get_players_data(match_events)
         match_progressive_one_twos = (

@@ -91,8 +91,8 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
             pitch_type="custom",
             pitch_width=68,
             pitch_length=105,
-            pitch_color="#17212d",
-            line_color="white",
+            pitch_color="white",
+            line_color="#17212d",
         )
         fig, ax = pitch.draw(figsize=(8, 8))  # type: ignore
 
@@ -104,8 +104,8 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
                 row[f"pass_end_{F.X}_A"],
                 row[f"pass_end_{F.Y}_A"],
                 width=1.5,
-                headwidth=5,
-                color="cyan",
+                headwidth=3,
+                color="#17212d",
                 ax=ax,
                 label="First pass" if i == match_team_df.index[0] else "",
             )
@@ -115,7 +115,7 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
                 row[f"pass_end_{F.X}_B"],
                 row[f"pass_end_{F.Y}_B"],
                 width=1.5,
-                headwidth=5,
+                headwidth=3,
                 color="lime",
                 ax=ax,
                 label="Return pass" if i == match_team_df.index[0] else "",
@@ -126,23 +126,23 @@ def plot_team_one_twos(one_twos_df: pd.DataFrame, team_name: str) -> None:
                 ls="--",
                 color="lime",
                 lw=1,
-                alpha=0.7,
+                alpha=1,
             )
             ax.plot(  # type: ignore
                 [row[f"{F.X}_A"], row[f"pass_end_{F.X}_B"]],
                 [row[f"{F.Y}_A"], row[f"pass_end_{F.Y}_B"]],
                 ls="--",
-                color="cyan",
+                color="#17212d",
                 lw=1,
-                alpha=0.7,
+                alpha=1,
             )
             minute = int(row[f"{F.TIME}_A"] // 60)
             ax.text(  # type: ignore
                 row[f"{F.X}_A"],
                 row[f"{F.Y}_A"] + 1,
                 f"{minute}′",
-                fontsize=8,
-                color="white",
+                fontsize=13,
+                color="#17212d",
                 ha="center",
                 va="bottom",
             )
@@ -172,41 +172,12 @@ def plot_season_avg_one_twos(
     one_twos_df: pd.DataFrame, logo_folder: Optional[str] = None
 ) -> None:
     """
-    Plot per-team season averages of progressive one–twos
-    (with per-team std as error bars).
-
-    For each team, counts one–twos per match, reindexes so every team has
-    exactly 38 match-rows (missing matches counted as zero), and then plots
-    the average per game with the per-match standard deviation.
-
-    Parameters
-    ----------
-    one_twos_df : pd.DataFrame
-        Event-level one–twos DataFrame. Must contain at least:
-        - F.GAME_ID (match identifier)
-        - F.TEAM_NAME (team name for the event)
-    logo_folder : Optional[str], default None
-        Folder path that contains team logo PNGs named exactly as team names,
-        e.g. "<logo_folder>/<team_name>.png". If provided and files exist,
-        logos are drawn to the left of each bar.
-
-    Returns
-    -------
-    None
-        Displays a Matplotlib figure.
-
-    Notes
-    -----
-    - Assumes a 38-match season when computing the average (total / 38).
-      Change this constant if your competition has a different number of
-      matches per team.
-    - Expects coordinates and team/event fields to be already normalized
-      by your pipeline; this function only aggregates and plots.
-
-    Examples
-    --------
-    >>> plot_season_avg_one_twos(progressive_one_twos_df_, logo_folder="/path/to/logos")
+    Plot per-team season averages of progressive one–twos with:
+      • blue↔︎green gradient bars (average per game)
+      • numbers in a single right-side column (no x-axis)
+      • no plot borders (spines) and no target/marker bars
     """
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
 
     df = one_twos_df.copy()
 
@@ -228,33 +199,51 @@ def plot_season_avg_one_twos(
         .reset_index()
     )
 
-    # Totals, std, and average per (assumed) 38 games
+    # Per-team totals and average per (assumed) 38 games
     stats = (
         match_counts.groupby(F.TEAM_NAME)["one_twos"]
-        .agg(total="sum", std="std")
+        .agg(total="sum")
         .assign(avg_one_twos=lambda x: x["total"] / 38)
         .sort_values("avg_one_twos")
         .reset_index()
-        .rename(columns={"std": "std_one_twos"})
     )
 
-    # Plot (horizontal bar chart)
+    # Gradient: blue ↔ green (sampled from your banner)
+    start_hex = "#729A91"  # greenish
+    end_hex = "#5C768F"  # blueish
+    cmap = LinearSegmentedColormap.from_list("blue_to_green", [start_hex, end_hex])
+
+    norm = Normalize(vmin=stats["avg_one_twos"].min(), vmax=stats["avg_one_twos"].max())
+    colors = cmap(norm(stats["avg_one_twos"].to_numpy()))
+
+    # Plot bars
     y = range(len(stats))
     fig, ax = plt.subplots(figsize=(12, 8))
+    bar_height = 0.65
     ax.barh(
         y,
         stats["avg_one_twos"],
-        xerr=stats["std_one_twos"],
-        height=0.65,
+        height=bar_height,
+        color=colors,
+        edgecolor="none",  # no bar borders
     )
+
+    # Remove x-axis and all spines (borders)
     ax.set_yticks([])
-    ax.set_xlabel("Average Progressive One–Twos per Game")
-    ax.spines["left"].set_visible(False)
+    ax.set_xlabel("")  # no x label
+    ax.set_xticks([])  # no ticks
+    for spine in ax.spines.values():
+        spine.set_visible(False)
 
     # Space on the left for logos + team names
     x_logo, x_text = -1.7, -1.3
-    ax.set_xlim(left=-1.7)
+    max_val = float(stats["avg_one_twos"].max())
 
+    # Column position for numbers (same x for every team)
+    number_col_x = max_val * 1.05
+    ax.set_xlim(left=-1.7, right=max_val * 1.18)  # ensure numbers are visible
+
+    # Team labels and (optional) logos
     for i, team in enumerate(stats[F.TEAM_NAME]):
         y_coord = i
         if logo_folder:
@@ -270,14 +259,22 @@ def plot_season_avg_one_twos(
                     )
                     ax.add_artist(ab)
                 except Exception:
-                    # If a logo fails to load, just fall back to text label
                     pass
         ax.text(
             x_text, y_coord, team, va="center", ha="left", fontsize=10, color="#222"
         )
 
-    # Drop negative tick labels (only show non-negative x)
-    ax.set_xticks([t for t in ax.get_xticks() if t >= 0])
+    # Numbers in a right-aligned column (aligned for all rows)
+    for i, val in enumerate(stats["avg_one_twos"]):
+        ax.text(
+            number_col_x,
+            i,
+            f"{val:.2f}",
+            va="center",
+            ha="left",
+            fontsize=10,
+            color="#222",
+        )
 
     plt.tight_layout()
     plt.show()
@@ -923,7 +920,7 @@ def plot_onetwos_chance_creation(
         height=bar_height,
         color=col_b,
         edgecolor="none",
-        label="One two led to key pass",
+        label="One two Closed with Key Pass",
     )
     ax.barh(
         y,
@@ -932,7 +929,7 @@ def plot_onetwos_chance_creation(
         height=bar_height,
         color=col_n,
         edgecolor="none",
-        label="One two followed by key pass",
+        label="One two Followed by Key Pass",
     )
     ax.barh(y, w_g, left=w_b + w_n, height=bar_height, color=col_g, edgecolor="none")
 

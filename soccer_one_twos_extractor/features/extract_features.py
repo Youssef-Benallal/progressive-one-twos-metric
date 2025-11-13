@@ -2,10 +2,11 @@
 
 import numpy as np
 import pandas as pd
+
 from soccer_one_twos_extractor.constants.constants import PITCH_LENGTH, PITCH_WIDTH
+from soccer_one_twos_extractor.constants.fields import F
 from soccer_one_twos_extractor.constants.qualifiers_mapping import QUALIFIER_NAME_TO_ID
 from soccer_one_twos_extractor.utils.utils import extract_qualifier
-from soccer_one_twos_extractor.constants.fields import F
 
 
 class FeaturesExtractor:
@@ -75,3 +76,33 @@ class FeaturesExtractor:
         d["receiver_carry_distance"] = np.hypot(carry_dx, carry_dy)
 
         return d
+
+    def next_chance_creation_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add next-event chance-creation context per team/period:
+          - keypass_next, assist_next
+          - secs_to_next_team_shot
+          - shot_within_6s_after (binary)
+        """
+        df_ = df.copy()
+        if F.ASSIST not in df_.columns:
+            df_[F.ASSIST] = "0"
+
+        df_[F.TIME] = df_[F.MINUTE] * 60 + df_[F.SECOND]
+        df_ = df_.sort_values([F.GAME_ID, F.TEAM_ID, F.PERIOD_ID, F.TIME, F.ACTION_ID])
+
+        g = df_.groupby([F.GAME_ID, F.TEAM_ID, F.PERIOD_ID], sort=False)
+
+        df_["keypass_next"] = g[F.KEY_PASS].shift(-1).fillna("0")
+        df_["assist_next"] = g[F.ASSIST].shift(-1).fillna("0")
+
+        is_shot = pd.to_numeric(df_[F.TYPE_ID], errors="coerce").isin([13, 14, 15, 16])
+        df_["_shot_time"] = np.where(is_shot, df_[F.TIME], np.nan)
+        df_["_next_shot_t"] = g["_shot_time"].transform("bfill")
+
+        df_["secs_to_next_team_shot"] = df_["_next_shot_t"] - df_[F.TIME]
+        df_["shot_within_6s_after"] = (
+            df_["secs_to_next_team_shot"].le(6).fillna(False).astype(int)
+        )
+
+        return df_.drop(columns=["_shot_time", "_next_shot_t"])
