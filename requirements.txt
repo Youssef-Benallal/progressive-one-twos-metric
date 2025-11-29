@@ -5,3 +5,6 @@ numpy>=1.23,<2.1
 pandas>=1.5,<2.3
 Pillow>=9.5,<11
 tqdm>=4.65,<5
+socceraction=1.5.3
+multimethod=1.12
+pandera=0.17.2
